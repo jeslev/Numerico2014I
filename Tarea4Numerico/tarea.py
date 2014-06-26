@@ -1,0 +1,322 @@
+import sys
+from Tkinter import *
+from HouseHolder import *
+from givens import *
+from jacobi import *
+from Seidel import *
+from SOR import *
+import tkMessageBox
+import os
+import numpy
+import math
+
+mGui = Tk()
+mynum = DoubleVar()
+matrizA = []
+matrizB = []
+matrizAA = []
+matrizBB = []
+dim = 0
+m = 0
+n = 0
+mm = 0
+isSymetric = True
+isRegular = False
+isSquare = False
+
+def mabout():
+    texto = '4ta Tarea\nAnalisis Numerico\n2014-1'
+    tkMessageBox.showinfo('Que es esto?', texto)
+    
+def creditos():
+    texto = 'Jesus Lovon Melgarejo\nMaritza Lapa Romero\n'
+    tkMessageBox.showinfo('Desarrollado por:', texto)
+
+def getMatrixfromTextA():
+    os.system("gedit matrizA.txt")
+    
+    
+def getMatrixfromTextB():
+    os.system("gedit matrizB.txt")
+
+
+def readMatrixA():
+    global dim
+    global m
+    global n
+    global matrizA
+    matrizA = []
+    f=open("matrizA.txt",'r+')
+    dim = 0
+    while(1):
+        line = f.readline()
+        if not line:
+            break
+        dim = dim+1
+        numrow = line.split()
+        ROW = []
+        cnt = 0
+        for num in numrow:
+            ROW.append(float(num))
+            cnt+=1
+        n = cnt
+        matrizA.append(ROW)    
+    m = dim
+    return
+
+def readMatrixB():
+    global b
+    b = []
+    f = open("matrizB.txt", 'r+')
+    line = f.readline()
+    if not line:
+        return
+    rows = line.split()
+    for num in rows:
+        matrizB.append(float(num))
+    return
+
+
+def reduccionParcial(mA, mB, M):
+    a = mA
+    b = mB
+    m = M
+    global matrizAA, matrizBB, mm
+    maxi = 0
+    pos_maxi=-1
+    P = []
+    for i in range(m):
+        P.append(i)
+    for i in range(m-1):
+        maxi = 0
+        pos_maxi=-1
+        for p in range(i,m):
+            if maxi < abs(a[p][i]):
+                maxi = abs(a[p][i])
+                pos_maxi = p
+        a[i], a[pos_maxi] = a[pos_maxi], a[i]
+        b[i], b[pos_maxi] = b[pos_maxi], b[i]
+        for j in range(i+1, m):
+            h = float(a[j][i])/float(a[i][i])
+            for k in range(i, n):
+                a[j][k] = a[j][k] - h*a[i][k]
+            b[j] = b[j] - h*b[i];
+    
+    nuevo_m = 0
+    minimo = 0.00000000001
+    for i in range(m):
+        for j in range(n):
+            if math.fabs(float(a[i][j])) > math.fabs(minimo):
+                nuevo_m += 1
+                break
+    
+    new_A = []
+    print "matrices D: D: D: D:"
+    print a
+    print b
+    for i in range(nuevo_m):
+        new_A.append([])
+        for j in range(n):
+            new_A[i].append(a[i][j])
+    
+    new_b = []
+    for i in range(nuevo_m):
+        new_b.append(b[i])
+    matrizAA, matrizBB, mm = new_A, new_b, nuevo_m 
+    return 
+
+
+def householder():
+    global matrizA,matrizB
+    matrizB= []
+    matrizA = []
+    
+    readMatrixA()
+    readMatrixB()
+    txt = 'HouseHolder -(Rango completo)\n\n'
+    if(m<n):
+        txt += 'No se puede aplicar el metodo\n\n'
+    else:
+        hh = HouseHolder(matrizA,m,n,matrizB)
+        txt += str(hh.all())
+    f=open("householder.txt",'w+')
+    f.write(txt)
+    f.close()
+    os.system('gedit householder.txt')
+    
+def givens():
+    global matrizA,matrizB
+    matrizB= []
+    matrizA = []
+    
+    readMatrixA()
+    readMatrixB()
+    txt = ''
+    if m < n:
+        txt = "Error: insuficientes ecuaciones"
+    else:
+        gv = Givens(matrizA,m,n,matrizB)    
+        txt = gv.calcular()
+    f=open("givens.txt",'w+')
+    f.write(txt)
+    f.close()
+    os.system('gedit givens.txt')
+    
+def jacobi():
+    global matrizAA, matrizBB, mm, matrizA, matrizB, m, n
+    matrizB= []
+    matrizA = []
+    readMatrixA()
+    readMatrixB()
+    txt = ''
+    reduccionParcial(matrizA, matrizB, m)
+    if mm ==m:
+        matrizB = []
+        matrizA = []
+        readMatrixA()
+        readMatrixB()
+        print "A, B"
+        print matrizA, matrizB
+        
+        if m!=n:
+            C = numpy.linalg.pinv(matrizA)
+            d = [ [0 for i in range(n)] for j in range(n)]
+            for i in range(n):
+                for j in range(n):
+                    for k in range(m):
+                        d[i][j] += C[i][k]*matrizA[k][j]
+            E = [0 for i in range(n)]
+            for i in range(n):
+                for k in range(m):
+                    E[i] += C[i][k]*matrizB[k]
+           
+            matrizB = E
+            m = n
+            matrizA = d
+        print matrizA
+        jb = Jacobi(matrizA,matrizB,m,n)
+    else:
+        print "AA, BB"
+        print matrizAA, matrizBB
+        jb = Jacobi(matrizAA,matrizBB,mm,n)
+    J = jb.getJ()
+    txt = jb.getTxt()
+    if len(J)>0:
+        if(m == n):
+            txt += '\nLa matriz tiene radio espectral : ' + str(radioEspectral(J))+'\nMatriz de Jacobi (J):\n\n'
+            for i in range(n):
+                txt+= str(J[i])+'\n'
+            txt+='\n\n'
+            if(simetrica(matrizA)):
+                if(definidaPositiva(matrizA)):
+                    txt += 'Es definida positiva y simetrica\n'
+                else:
+                    txt += 'Solo es simetrica'
+                
+    f=open("jacobi.txt",'w+')
+    f.write(txt)
+    f.close()
+    os.system('gedit jacobi.txt')
+    
+def gauss():
+    global matrizAA, matrizBB, matrizA, matrizB, mm, m, n
+    matrizB= []
+    matrizA = []
+    txt = ''
+    readMatrixA()
+    readMatrixB()    
+    reduccionParcial(matrizA, matrizB, m)
+    gs = GaussSeidel(matrizAA,matrizBB,mm,n)
+    txt = gs.getTxt()
+    G = gs.getG()
+    if len(G)>0:
+        if(m == n):
+            txt += '\nLa matriz tiene radio espectral : ' + str(radioEspectral(G))+'\nMatriz Gauss-Siedel:\n\n'
+            for i in range(n):
+                txt+= str(G[i])+'\n'
+            txt +='\n\n'
+    
+            if(simetrica(matrizA)):
+                if(definidaPositiva(matrizA)):
+                    txt += 'Es definida positiva y simetrica\n'
+                else:
+                    txt += 'Solo es simetrica'
+                
+    f=open("gaussSeidel.txt",'w+')
+    f.write(txt)
+    f.close()
+    os.system('gedit gaussSeidel.txt')
+    
+def sor():
+    global matrizA,matrizB
+    matrizA = []
+    matrizB = []
+    readMatrixA()
+    readMatrixB()
+    txt = ''
+    w = float(mynum.get())
+    if(m!=n):
+        txt += 'No se puede aplicar el metodo (No es matriz cuadrada)\n\n'
+    else:
+        
+        sor = Sor(matrizA,matrizB,w)
+        txt = sor.getTxt()
+        if(simetrica(matrizA)):
+            if(definidaPositiva(matrizA)):
+                txt += 'Es definida positiva y simetrica\n'
+            else:
+                txt += 'Solo es simetrica'
+        
+    f=open("sor.txt",'w+')
+    f.write(txt)
+    f.close()
+    os.system('gedit sor.txt')
+    
+    
+    
+def radioEspectral(A):
+    rad = max(abs(numpy.linalg.eig(A)[0]))
+    return rad
+
+def definidaPositiva(A):
+    eig  = numpy.linalg.eig(A)[0]
+    for x in eig:
+        if(x<0.0000001):
+            return False
+    return True
+
+def simetrica(matrizA):
+    ''' Revisar si es simetrica '''
+    for i in range(m):
+        for j in range(n):
+            if matrizA[i][j] != matrizA[j][i]:
+                return False
+    return True
+
+
+def main():
+    #mGui = Tk()
+    mGui.geometry('450x300+200+200')
+    mGui.title('Metodos Iterativos')
+
+    mbotonMatriz = Button(mGui, text = 'Ingrese la matriz A', command = getMatrixfromTextA).place(x=20,y=20)
+    mbotonMatriz = Button(mGui, text = 'Ingrese la matriz B', command = getMatrixfromTextB).place(x=20,y=50)
+    
+    mbotonHouseHolder = Button(mGui, text = 'HouseHolder', command = householder).place(x=20, y = 100)
+    mbotonGivens = Button(mGui, text = 'Givens', command = givens).place(x=20,y=140)
+    mbotonJacobi = Button(mGui, text = 'Jacobi', command = jacobi).place(x=20,y=180)
+    mbotonGauss = Button(mGui, text = 'Gauss-Seidel', command = gauss).place(x=20,y=220)
+    mbotonGauss = Button(mGui, text = 'SOR', command = sor).place(x=20,y=260)
+    mtextNum = Entry(mGui, textvariable = mynum).place(x=100,y=260)
+    #MENU
+    menubar = Menu(mGui)
+    filemenu = Menu(menubar,tearoff=0)
+    filemenu.add_command(label='About', command =mabout)
+    filemenu.add_command(label='Creditos',command = creditos)
+    menubar.add_cascade(labe= 'Help',menu=filemenu)
+    mGui.config(menu = menubar)
+        
+    mGui.mainloop()
+
+if __name__ == "__main__":
+    main()
